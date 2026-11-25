@@ -32,10 +32,28 @@ class TimeTravelService(BaseModuleService):
             if pf:
                 total_rows += pf.file_rows
                 partitions.add(pf.partition_key)
+        _, stored_records = lake_store.read_lake_records(lake_table, snapshot_id)
+        record_items = []
+        for record in stored_records:
+            item = dict(record.get("values") or {})
+            item.update({
+                "row_uid": record.get("row_uid"),
+                "source_system": record.get("source_system"),
+                "source_credential": record.get("source_credential"),
+                "accepted_scope": record.get("accepted_scope"),
+                "accepted_range": record.get("accepted_range") or record.get("accepted_scope"),
+                "accepted_ranges": record.get("accepted_ranges"),
+                "snapshot_id": snapshot_id,
+            })
+            record_items.append(item)
         return {
             "success": True,
             "snapshot_id": snapshot_id,
             "rows": total_rows,
+            "row_count": total_rows,
+            "records": stored_records,
+            "items": record_items,
+            "data": record_items,
             "partition_count": len(partitions),
             "partitions_hit": sorted(partitions),
             "query_time": time.time(),

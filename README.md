@@ -73,6 +73,27 @@ npm run dev
 | 资源额度计量 | `quota_meter` | 额度读数 | 读数编号、所属湖表、额度类型 |
 | 湖表审计 | `lake_audit` | 审计条目 | 条目编号、所属湖表、操作类型 |
 
+## 入湖批次幂等与对账
+
+入湖批次以 `湖表 + 来源系统 + 采集窗口 + 规范行内容` 作为逻辑幂等键。字段顺序、
+行顺序变化不会产生第二个逻辑批次；不同来源（例如 A/B）即使行值相同，也会分别保留
+来源凭据和接受范围。
+
+- `POST /api/ingest_batch/receive`：接收/重传批次。
+- `POST /api/ingest_batch/retransmit-group`：整组补传，支持 `allow_partial=true`
+  按条接手，或 `wait_for_previous=true` 返回 `pending_part` 待补投部分。
+- `POST /api/ingest_batch/{batch_id}/confirm`：确认逻辑入湖并绑定真实快照；重复确认幂等。
+- `GET /api/ingest_batch/read/rows?lake_table=...`：读取已确认快照中的去重记录、
+  来源、来源凭据和接受范围。
+- `GET /api/ingest_batch/detail/{batch_id}`：逻辑批次、每一次尝试、原始载荷、
+  旧/规范摘要、按条范围和实际确认快照。
+- `POST /api/ingest_batch/verify`：校验摘要。旧 MD5 仍按原 Python repr 算法校验
+  原始载荷；若旧摘要对应的原始载荷与仅调整字段顺序的新载荷规范内容一致，会返回
+  `logical_batch_id`、`original_input` 和独立的 `reconciliation` 对账结果。
+
+前端在「入湖批次」列表点击「入湖详情」或批次编号，可进入
+`/ingest_batch/detail/:batchId` 查看上述信息。
+
 ## 约定
 
 - 全部模块共享`frontend/src/views/WorkbenchView.vue|tsx`和一套资源路由。

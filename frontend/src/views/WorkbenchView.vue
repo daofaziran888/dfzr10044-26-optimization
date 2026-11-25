@@ -47,9 +47,30 @@
       </thead>
       <tbody>
         <tr v-for="row in rows" :key="String(row.id)" :data-testid="`row-${row.id}`" :data-status="String(row.status)">
-          <td v-for="column in meta.fields" :key="column">{{ row[column] ?? '—' }}</td>
+          <td v-for="column in meta.fields" :key="column">
+            <button
+              v-if="meta.key === 'ingest_batch' && column === '批次编号'"
+              class="link"
+              type="button"
+              :data-testid="`batch-link-${row.id}`"
+              @click="openDetail(row)"
+            >
+              {{ row[column] ?? '—' }}
+            </button>
+            <template v-else>{{ row[column] ?? '—' }}</template>
+          </td>
           <td>{{ row.status }}</td>
           <td class="row-actions">
+            <button
+              v-if="meta.key === 'ingest_batch'"
+              class="link"
+              type="button"
+              :data-testid="`detail-${row.id}`"
+              :aria-label="`查看 ${row.批次编号 || row.id} 的入湖详情`"
+              @click="openDetail(row)"
+            >
+              入湖详情
+            </button>
             <button
               v-for="action in meta.actions"
               :key="action"
@@ -95,6 +116,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 
 import {
   createEntry,
@@ -106,6 +128,7 @@ import {
 import type { EntryRow } from '@/data/types'
 
 const props = defineProps<{ moduleKey: string }>()
+const router = useRouter()
 const meta = moduleMeta(props.moduleKey)
 const rows = ref<EntryRow[]>([])
 const total = ref(0)
@@ -174,6 +197,11 @@ async function runAction(action: string, row: EntryRow) {
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '操作失败'
   }
+}
+
+function openDetail(row: EntryRow) {
+  const identifier = row.logical_batch_id || row.id
+  void router.push(`/ingest_batch/detail/${encodeURIComponent(String(identifier))}`)
 }
 
 async function reload() {
